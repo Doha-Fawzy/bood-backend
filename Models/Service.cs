@@ -9,10 +9,17 @@ namespace Bood.Api.Models
 
         [Required]
         [MaxLength(100)]
-        public string Title { get; set; } = string.Empty;
+        public string TitleEn { get; set; } = string.Empty;
 
         [Required]
-        public string Description { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string TitleAr { get; set; } = string.Empty;
+
+        [Required]
+        public string DescriptionEn { get; set; } = string.Empty;
+
+        [Required]
+        public string DescriptionAr { get; set; } = string.Empty;
 
         [Required]
         public ServiceCategory Category { get; set; }

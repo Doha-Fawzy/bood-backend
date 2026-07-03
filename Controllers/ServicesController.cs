@@ -25,6 +25,21 @@ namespace Bood.Api.Controllers
             return await _context.Services.ToListAsync();
         }
 
+        // GET: api/Services/5 (Publicly accessible)
+        [HttpGet("{id}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<Service>> GetService(int id)
+        {
+            var service = await _context.Services.FindAsync(id);
+
+            if (service == null)
+            {
+                return NotFound();
+            }
+
+            return service;
+        }
+
         // GET: api/Services/category/{categoryName} (Publicly accessible)
         [HttpGet("category/{categoryName}")]
         [AllowAnonymous]
@@ -40,6 +55,39 @@ namespace Bood.Api.Controllers
                 .ToListAsync();
 
             return Ok(services);
+        }
+
+        // POST: api/Services/upload-image (Admin only)
+        [HttpPost("upload-image")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UploadImage(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded.");
+
+            // Basic validation
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+                return BadRequest("Invalid file type.");
+
+            // Create uploads folder if it doesn't exist
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+            if (!Directory.Exists(uploadsFolder))
+                Directory.CreateDirectory(uploadsFolder);
+
+            // Generate unique filename
+            var fileName = Guid.NewGuid().ToString() + extension;
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            // Save file
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Return URL (relative to root)
+            return Ok(new { url = $"/uploads/{fileName}" });
         }
 
         // POST: api/Services (Admin only)

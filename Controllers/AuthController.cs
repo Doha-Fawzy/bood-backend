@@ -25,11 +25,19 @@ namespace Bood.Api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            var admin = await _context.Admins.FirstOrDefaultAsync(a => a.Username == loginDto.Username);
+            var admin = await _context.Admins.FirstOrDefaultAsync(a => a.Username.ToLower() == loginDto.Username.ToLower().Trim());
 
-            // Note: Use BCrypt.Verify() in production instead of plain string comparison
-            if (admin == null || !VerifyPassword(loginDto.Password, admin.PasswordHash))
+            if (admin == null)
+            {
+                Console.WriteLine($"Login failed: Admin not found for username '{loginDto.Username}'");
                 return Unauthorized(new { message = "Invalid username or password" });
+            }
+
+            if (!VerifyPassword(loginDto.Password.Trim(), admin.PasswordHash))
+            {
+                Console.WriteLine($"Login failed: Password mismatch for user '{loginDto.Username}'. Provided: '{loginDto.Password}', Expected in hash: '{admin.PasswordHash}'");
+                return Unauthorized(new { message = "Invalid username or password" });
+            }
 
             var token = GenerateJwtToken(admin.Username);
             return Ok(new { token });
