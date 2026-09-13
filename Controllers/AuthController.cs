@@ -1,11 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Bood.Api.Data;
 using Bood.Api.DTOs;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+
 
 namespace Bood.Api.Controllers
 {
@@ -13,40 +12,33 @@ namespace Bood.Api.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
 
-        public AuthController(ApplicationDbContext context, IConfiguration configuration)
+        public AuthController(IConfiguration configuration)
         {
-            _context = context;
             _configuration = configuration;
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
+        public IActionResult Login([FromBody] LoginDto loginDto)
         {
-            var admin = await _context.Admins.FirstOrDefaultAsync(a => a.Username.ToLower() == loginDto.Username.ToLower().Trim());
+            var adminUsername = _configuration["AdminCredentials:Username"];
+            var adminPassword = _configuration["AdminCredentials:Password"];
 
-            if (admin == null)
+            if (string.IsNullOrEmpty(adminUsername) || string.IsNullOrEmpty(adminPassword))
             {
-                Console.WriteLine($"Login failed: Admin not found for username '{loginDto.Username}'");
+                Console.WriteLine("Login failed: Admin credentials are not configured properly.");
+                return StatusCode(500, new { message = "Server configuration error" });
+            }
+
+            if (loginDto.Username != adminUsername || loginDto.Password != adminPassword)
+            {
+                Console.WriteLine($"Login failed: Invalid credentials for user '{loginDto.Username}'");
                 return Unauthorized(new { message = "Invalid username or password" });
             }
 
-            if (!VerifyPassword(loginDto.Password.Trim(), admin.PasswordHash))
-            {
-                Console.WriteLine($"Login failed: Password mismatch for user '{loginDto.Username}'. Provided: '{loginDto.Password}', Expected in hash: '{admin.PasswordHash}'");
-                return Unauthorized(new { message = "Invalid username or password" });
-            }
-
-            var token = GenerateJwtToken(admin.Username);
+            var token = GenerateJwtToken(adminUsername);
             return Ok(new { token });
-        }
-
-        private bool VerifyPassword(string password, string hash)
-        {
-            // Placeholder: Implement actual hashing verification (e.g., BCrypt)
-            return hash.Contains(password); 
         }
 
         private string GenerateJwtToken(string username)
