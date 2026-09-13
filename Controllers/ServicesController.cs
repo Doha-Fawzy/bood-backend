@@ -11,10 +11,12 @@ namespace Bood.Api.Controllers
     public class ServicesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IWebHostEnvironment _env;
 
-        public ServicesController(ApplicationDbContext context)
+        public ServicesController(ApplicationDbContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
         // GET: api/Services (Publicly accessible)
@@ -60,7 +62,7 @@ namespace Bood.Api.Controllers
         // POST: api/Services/upload-image (Admin only)
         [HttpPost("upload-image")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UploadImage(IFormFile file)
+        public async Task<IActionResult> UploadImage(IFormFile file, [FromForm] string folderName = "services")
         {
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
@@ -71,23 +73,29 @@ namespace Bood.Api.Controllers
             if (!allowedExtensions.Contains(extension))
                 return BadRequest("Invalid file type.");
 
-            // Create uploads folder if it doesn't exist
-            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-            if (!Directory.Exists(uploadsFolder))
-                Directory.CreateDirectory(uploadsFolder);
+            var fileExtension = Path.GetExtension(file.FileName);
+            var uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
+            
+            var webRootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            if (string.IsNullOrWhiteSpace(folderName)) folderName = "services";
 
-            // Generate unique filename
-            var fileName = Guid.NewGuid().ToString() + extension;
-            var filePath = Path.Combine(uploadsFolder, fileName);
+            var targetFolder = Path.Combine(webRootPath, "uploads", folderName);
+            if (!Directory.Exists(targetFolder))
+                Directory.CreateDirectory(targetFolder);
+
+            // Physical path for saving the file to wwwroot
+            var physicalPath = Path.Combine(targetFolder, uniqueFileName);
 
             // Save file
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            using (var stream = new FileStream(physicalPath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
 
-            // Return URL (relative to root)
-            return Ok(new { url = $"/uploads/{fileName}" });
+            // Relative path for the database
+            var relativeDbPath = $"/uploads/{folderName}/{uniqueFileName}".Replace("\\", "/");
+
+            return Ok(new { url = relativeDbPath });
         }
 
         // POST: api/Services (Admin only)

@@ -68,15 +68,15 @@ if (!Directory.Exists(uploadsFolder))
     Directory.CreateDirectory(uploadsFolder);
 }
 
+// Enable CORS before StaticFiles to allow images to be loaded
+app.UseCors("AllowAngularApp");
+
 // Enable static files for uploaded images
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsFolder),
     RequestPath = "/uploads"
 });
-
-// Enable CORS
-app.UseCors("AllowAngularApp");
 
 app.UseAuthentication();
 app.UseAuthorization();
